@@ -1,0 +1,16 @@
+{
+  "name": "dagger-locks-covenant",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Dagger Locks — LOCK_V1 covenant Phase 0/1 (TN10 validation + audit gate). NOT PRODUCTION.",
+  "scripts": {
+    "test": "node src/test_model.js && node src/test_verify.js",
+    "test:model": "node src/test_model.js",
+    "test:verify": "node src/test_verify.js"
+  },
+  "dependencies": {
+    "kaspa": "file:../kron-service/node_modules/@kronsdk/kron-sdk/vendor/kaspa",
+    "@kronsdk/kron-sdk": "file:../kron-service/node_modules/@kronsdk/kron-sdk"
+  }
+}

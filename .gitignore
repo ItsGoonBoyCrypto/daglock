@@ -1,0 +1,12 @@
+# Wallet state files — CONTAIN PRIVATE KEYS. Never commit.
+state.json
+mainnet_state.json
+advstate.json
+*state*.json
+
+# deps / build
+node_modules/
+
+# bot secrets + state
+bot/.env
+bot/*state*.json

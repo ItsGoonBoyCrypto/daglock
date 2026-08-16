@@ -1,0 +1,55 @@
+name: DagLock covenant tests
+
+# Regression gate for the DagLock (LOCK_V1) covenant. Runs the offline suites and the exhaustive
+# real-interpreter Rust harness. Does NOT touch any network (no TN10/mainnet) — those are manual.
+on:
+  push:
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  offline-suites:
+    name: Model + verifier (Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # The offline suites are pure JS (no WASM, no external deps) — no install needed.
+      - name: Model + creation-validation (200k schedules)
+        run: node src/test_model.js
+      - name: Verifier byte-flip (24,480 mutants) + F1/F4
+        run: node src/test_verify.js
+
+  real-interpreter-harness:
+    name: rusty-kaspa TxScriptEngine harness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: daglock
+      - name: Checkout rusty-kaspa (pinned)
+        uses: actions/checkout@v4
+        with:
+          repository: kaspanet/rusty-kaspa
+          ref: a41a333b08848f41bf737b72592e463a6011b8ac
+          path: rusty-kaspa
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rusty-kaspa/target
+          key: ${{ runner.os }}-cargo-daglock-a41a333b
+      - name: Drop in the harness example + register it
+        run: |
+          cp daglock/harness/lock_harness.rs rusty-kaspa/crypto/txscript/examples/lock_harness.rs
+          if ! grep -q 'name = "lock_harness"' rusty-kaspa/crypto/txscript/Cargo.toml; then
+            printf '\n[[example]]\nname = "lock_harness"\npath = "examples/lock_harness.rs"\n' >> rusty-kaspa/crypto/txscript/Cargo.toml
+          fi
+      - name: Run harness (real interpreter; nonzero exit fails the job)
+        working-directory: rusty-kaspa
+        run: cargo run --release --example lock_harness -p kaspa-txscript
