@@ -211,64 +211,10 @@ its stabilization).
 
 ## 5. Dagger integration
 
-### 5.1 New sidecar routes (kron-service, same 127.0.0.1 + `x-dagger-token` guard)
-
-```
-POST /lock-create     {payer, beneficiary, amountSompi | {tick, amount}, startMs, cliffMs,
-                       periodMs, nPeriods, template: "LOCK_V1"|"GRANT_V1", [cancelKeys]}
-                      → validates §3.4, shards if needed, builds+signs+broadcasts creation tx
-                      → { covenantIds[], txids[], scheduleEcho }
-POST /lock-claim      {covenantId, beneficiarySecretRef} → builds claim tx (auto A vs B path,
-                       max claimable), adds fee input, signs, broadcasts → {txid, claimed, remaining}
-GET  /lock-status     ?covenantId= → {params, remaining, vested, claimable, nextUnlockMs,
-                       lineage[], shardGroup}
-GET  /locks-by-token  ?tick= → aggregate: total locked, % of supply, schedules, verifier verdict
-GET  /lock-verify     ?covenantId= → {templateMatch: bool, templateVersion, constants,
-                       badgeTier}   // the badge endpoint — pure read, cacheable
-GET  /locks-by-address ?address= → locks where address is beneficiary (claim UX)
-```
-`/lock-verify` and `/locks-by-token` are read-only → also exposed through the scanner sidecar
-allowlist (same pattern as the existing 6 read-only routes).
-
-### 5.2 Bot commands (dagger-bot)
-
-- `/lock` — wizard: asset → amount → beneficiary → schedule presets (6mo cliff + 18mo daily;
-  12mo linear; custom) → parameter echo → typed confirm → creation → shareable
-  confirmation card with KasCov lineage link.
-- `/locks` — your locks (as payer or beneficiary): progress bars, next unlock, claimable now.
-- `/claim` — one-tap claim of everything claimable across your locks.
-- Group-chat flex: `/locks <TICK>` posts the token's lock summary card (drives the badge viral —
-  same growth mechanic as PnL cards).
-
-### 5.3 Scanner + market-card badge
-
-- `scanner-bot /scan` output and dagger-bot token cards gain a lock line:
-  `🔒 Team: 34% of supply vesting until 2027-02-01 (verified)` ← only when `/lock-verify`
-  says `templateMatch: true`. Unverifiable = no badge, ever.
-- KasCov deep link on every badge (existing kascov URL scheme in config).
-
-### 5.4 Lock registry
-
-Sidecar keeps a lightweight index (covenantId → params, shard groups, tick) discovered from
-creation txs we broadcast **plus** a chain-scan for foreign locks matching our template hashes —
-locks created by the standalone CLI (§5.5) or competitors-using-our-template get badges too.
-The template is a public standard; the badge network effect is ours.
-
-### 5.5 Standalone open-source claim CLI
-
-Small repo (TS, WASM SDK): given a covenant id + beneficiary key, builds and broadcasts a claim.
-This is the "Dagger can vanish and your funds don't care" proof — a launch-post talking point
-and an audit-scope item. Publish under ItsGoonBoyCrypto, MIT.
-
-### 5.6 Fees
-
-- Team locks: **flat creation fee** (e.g. 25 KAS per lock group, promo codes apply) — % fees
-  would discourage the exact behavior we want to make universal. Collected via the existing
-  inline fee flow to the fee wallet.
-- Grants/streams (phase 2): flat + 0.25% of stream value, capped.
-- Claims: free (network fee only) — never tax the beneficiary.
-
----
+DagLock is surfaced through the Dagger trading bot: a guided create/claim flow, a verifiable
+🔒 badge on token launches (backed by `verify.js` — exact fingerprint match + funded==TOTAL),
+and a standalone open-source claim CLI so a beneficiary never depends on any hosted service to
+claim. Product-specific wiring, fees, and rollout are tracked internally.
 
 ## 6. Phase 2 preview — Streams (payroll/grants)
 
